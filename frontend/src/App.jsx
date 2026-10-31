@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import QuizPage from './pages/QuizPage';
 import ManageQuestions from './pages/ManageQuestions';
+import ManageQuizzes from './pages/ManageQuizzes';
 
 function App() {
   const { isAuthenticated, isAdmin } = useSelector((state) => state.auth);
@@ -45,6 +46,10 @@ function App() {
         <Route
           path="/admin/questions"
           element={isAuthenticated && isAdmin ? <ManageQuestions /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/admin/quizzes"
+          element={isAuthenticated && isAdmin ? <ManageQuizzes /> : <Navigate to="/login" replace />}
         />
 
         {/* 404 Route */}

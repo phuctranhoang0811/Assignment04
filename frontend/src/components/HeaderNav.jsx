@@ -24,14 +24,13 @@ function HeaderNav({ title = 'Dashboard' }) {
           <>
             <Link to="/admin" className="text-decoration-none text-dark">Home</Link>
             <Link to="/admin/questions" className="text-decoration-none text-dark">Manage Questions</Link>
-            <span className="text-secondary" style={{ cursor: 'pointer' }}>Manage Articles</span>
+            <Link to="/admin/quizzes" className="text-decoration-none text-dark">Manage Quizzes</Link>
             <span className="text-secondary" style={{ cursor: 'pointer' }} onClick={handleLogout}>Logout</span>
           </>
         ) : (
           <>
             <Link to="/dashboard" className="text-decoration-none text-dark">Home</Link>
             <Link to="/dashboard/quiz" className="text-decoration-none text-dark">Quiz</Link>
-            <span className="text-secondary" style={{ cursor: 'pointer' }}>Article</span>
             <span className="text-secondary" style={{ cursor: 'pointer' }} onClick={handleLogout}>Logout</span>
           </>
         )}
@@ -41,4 +40,3 @@ function HeaderNav({ title = 'Dashboard' }) {
 }
 
 export default HeaderNav;
-
