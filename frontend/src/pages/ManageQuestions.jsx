@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import HeaderNav from '../components/HeaderNav';
 
@@ -12,6 +13,11 @@ function ManageQuestions() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [newQuizTitle, setNewQuizTitle] = useState('');
+  const [newQuizDescription, setNewQuizDescription] = useState('');
+  const [quizLoading, setQuizLoading] = useState(false);
 
   const fetchQuestions = async () => {
     try {
@@ -57,7 +63,7 @@ function ManageQuestions() {
     try {
       const payload = {
         text: questionText.trim(),
-        options: options.map(o => o.trim()),
+        options: options.map((o) => o.trim()),
         correctAnswerIndex: Number(correctAnswerIndex) || 0,
         keywords: [],
       };
@@ -69,7 +75,6 @@ function ManageQuestions() {
         const res = await axiosClient.post('/questions', payload);
         const newQId = res.data?.question?._id;
 
-        // Tự động gán vào bài Quiz (nếu có chọn) trong try/catch riêng biệt
         if (newQId && selectedQuizId) {
           try {
             const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
@@ -98,14 +103,7 @@ function ManageQuestions() {
       setEditingId(null);
       await fetchQuestions();
     } catch (err) {
-      const status = err.response?.status;
-      let errMsg = err.response?.data?.message || err.message;
-      if (status === 401) {
-        errMsg = 'Your session has expired. Please log out and log in again as admin (admin / 12345678).';
-      } else if (status === 403) {
-        errMsg = 'Permission denied. Please make sure you are logged in with an Admin account (admin / 12345678).';
-      }
-      setMessage({ type: 'danger', text: errMsg });
+      setMessage({ type: 'danger', text: err.response?.data?.message || 'Error saving question' });
     } finally {
       setLoading(false);
     }
@@ -113,10 +111,10 @@ function ManageQuestions() {
 
   const handleEdit = (q) => {
     setEditingId(q._id);
-    setQuestionText(q.text);
-    setOptions(q.options && q.options.length === 4 ? q.options : ['', '', '', '']);
+    setQuestionText(q.text || '');
+    setOptions(q.options?.length === 4 ? [...q.options] : ['', '', '', '']);
     setCorrectAnswerIndex(q.correctAnswerIndex ?? 0);
-    setMessage({ type: 'info', text: 'Editing question: ' + q.text });
+    setMessage({ type: '', text: '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -133,7 +131,6 @@ function ManageQuestions() {
     }
   };
 
-  // Thêm trực tiếp câu hỏi vào Quiz đang chọn
   const handleAddToQuiz = async (qId) => {
     if (!selectedQuizId) {
       alert('Please select a quiz first');
@@ -161,7 +158,6 @@ function ManageQuestions() {
     }
   };
 
-  // Xóa câu hỏi khỏi bài Quiz đang chọn
   const handleRemoveFromQuiz = async (qId) => {
     if (!selectedQuizId) return;
     const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
@@ -183,7 +179,39 @@ function ManageQuestions() {
     }
   };
 
-  // Kiểm tra xem câu hỏi có thuộc quiz đang chọn không
+  const handleCreateNewQuiz = async (e) => {
+    e.preventDefault();
+    if (!newQuizTitle.trim()) return;
+
+    setQuizLoading(true);
+    try {
+      const res = await axiosClient.post('/quizzes', {
+        title: newQuizTitle.trim(),
+        description: newQuizDescription.trim(),
+        questions: [],
+      });
+      const createdQuiz = res.data?.quiz;
+      setNewQuizTitle('');
+      setNewQuizDescription('');
+      setShowQuizModal(false);
+      await fetchQuizzes();
+      if (createdQuiz?._id) {
+        setSelectedQuizId(createdQuiz._id);
+      }
+      setMessage({
+        type: 'success',
+        text: `Created new Quiz "${createdQuiz?.title || 'Quiz'}" successfully and selected it!`,
+      });
+    } catch (err) {
+      setMessage({
+        type: 'danger',
+        text: err.response?.data?.message || 'Error creating quiz',
+      });
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
   const isQuestionInSelectedQuiz = (qId) => {
     if (!selectedQuizId) return false;
     const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
@@ -196,9 +224,22 @@ function ManageQuestions() {
       <HeaderNav title="Admin Dashboard" />
 
       <div className="container mt-4 mb-5" style={{ maxWidth: '850px' }}>
-        <h2 className="fw-bold mb-4">Questions</h2>
+        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <h2 className="fw-bold mb-0">Questions Management</h2>
+          <div className="d-flex gap-2">
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={() => setShowQuizModal(true)}
+            >
+              + Create New Quiz
+            </button>
+            <Link to="/admin/articles" className="btn btn-outline-secondary">
+              Manage Articles & Quizzes →
+            </Link>
+          </div>
+        </div>
 
-        {/* Thông báo trạng thái (Alert Banner) */}
         {message.text && (
           <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
             {message.text}
@@ -210,7 +251,71 @@ function ManageQuestions() {
           </div>
         )}
 
-        {/* Khung Form Thêm / Cập nhật câu hỏi */}
+        {/* Modal tạo Quiz mới nhanh */}
+        {showQuizModal && (
+          <div
+            className="modal show d-block"
+            tabIndex="-1"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title fw-bold">Create New Quiz</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowQuizModal(false)}
+                  ></button>
+                </div>
+                <form onSubmit={handleCreateNewQuiz}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label text-secondary">Quiz Title *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. JavaScript Advanced, React Basics..."
+                        value={newQuizTitle}
+                        onChange={(e) => setNewQuizTitle(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label text-secondary">Description</label>
+                      <textarea
+                        className="form-control"
+                        rows="3"
+                        placeholder="Short overview of the quiz..."
+                        value={newQuizDescription}
+                        onChange={(e) => setNewQuizDescription(e.target.value)}
+                      ></textarea>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowQuizModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-success"
+                      disabled={quizLoading}
+                    >
+                      {quizLoading ? 'Creating...' : 'Create Quiz'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Question */}
         <div className="card p-4 mb-5 border-1 shadow-none">
           <form onSubmit={handleSubmit}>
             <div className="row mb-3 align-items-center">
@@ -248,7 +353,6 @@ function ManageQuestions() {
               </div>
             </div>
 
-            {/* Chọn đáp án đúng (Correct Answer Index) dạng Dropdown rõ ràng, không lo gõ nhầm */}
             <div className="row mb-3 align-items-center">
               <label className="col-sm-3 col-form-label text-secondary">Correct Answer Index:</label>
               <div className="col-sm-9">
@@ -258,35 +362,43 @@ function ManageQuestions() {
                   onChange={(e) => setCorrectAnswerIndex(Number(e.target.value))}
                   required
                 >
-                  <option value={0}>Option 0: {options[0] || '(chưa nhập)'}</option>
-                  <option value={1}>Option 1: {options[1] || '(chưa nhập)'}</option>
-                  <option value={2}>Option 2: {options[2] || '(chưa nhập)'}</option>
-                  <option value={3}>Option 3: {options[3] || '(chưa nhập)'}</option>
+                  <option value={0}>Option 0: {options[0] || '(empty)'}</option>
+                  <option value={1}>Option 1: {options[1] || '(empty)'}</option>
+                  <option value={2}>Option 2: {options[2] || '(empty)'}</option>
+                  <option value={3}>Option 3: {options[3] || '(empty)'}</option>
                 </select>
                 <div className="form-text text-success">
-                  ✓ Đáp án đúng được chọn: <strong>Option {correctAnswerIndex}</strong>
+                  Selected correct answer: <strong>Option {correctAnswerIndex}</strong>
                 </div>
               </div>
             </div>
 
-            {/* Mục chọn Quiz để gán câu hỏi vào */}
             <div className="row mb-4 align-items-center">
-              <label className="col-sm-3 col-form-label text-secondary">Add to Quiz:</label>
+              <label className="col-sm-3 col-form-label text-secondary">Assign to Quiz:</label>
               <div className="col-sm-9">
-                <select
-                  className="form-select"
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                >
-                  <option value="">-- Do not add to quiz --</option>
-                  {quizzes.map((qz) => (
-                    <option key={qz._id} value={qz._id}>
-                      {qz.title} ({qz.questions?.length || 0} questions)
-                    </option>
-                  ))}
-                </select>
+                <div className="input-group">
+                  <select
+                    className="form-select"
+                    value={selectedQuizId}
+                    onChange={(e) => setSelectedQuizId(e.target.value)}
+                  >
+                    <option value="">-- Do not add to quiz --</option>
+                    {quizzes.map((qz) => (
+                      <option key={qz._id} value={qz._id}>
+                        {qz.title} ({qz.questions?.length || 0} questions)
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-outline-success"
+                    onClick={() => setShowQuizModal(true)}
+                  >
+                    + New Quiz
+                  </button>
+                </div>
                 <small className="text-muted">
-                  Câu hỏi mới tạo sẽ tự động được đưa vào bài thi trắc nghiệm này.
+                  New question will be automatically linked to the selected quiz.
                 </small>
               </div>
             </div>
@@ -312,7 +424,7 @@ function ManageQuestions() {
           </form>
         </div>
 
-        {/* Danh sách các câu hỏi */}
+        {/* Danh sách câu hỏi */}
         <div className="card border-1 shadow-none">
           {questions.length === 0 ? (
             <div className="p-4 text-center text-muted">No questions yet. Add one using the form above!</div>
@@ -331,21 +443,21 @@ function ManageQuestions() {
                     )}
                   </div>
 
-                  {/* Hiển thị rõ ràng danh sách Options và ĐÁP ÁN ĐÚNG trên UI */}
                   <ul className="mb-3 ps-3 list-unstyled">
                     {q.options?.map((opt, optIdx) => {
                       const isCorrect = optIdx === q.correctAnswerIndex;
                       return (
                         <li
                           key={optIdx}
-                          className={`mb-2 d-flex align-items-center ${
-                            isCorrect ? 'text-success fw-bold' : 'text-secondary'
+                          className={`py-1 px-2 mb-1 rounded ${
+                            isCorrect ? 'bg-success bg-opacity-10 text-success fw-bold' : ''
                           }`}
                         >
-                          <span className="me-2">• Option {optIdx}: {opt}</span>
+                          <span className="me-2 text-secondary">({optIdx})</span>
+                          {opt}
                           {isCorrect && (
-                            <span className="badge bg-success-subtle text-success border border-success ms-2 small">
-                              ✓ Correct Answer (Index {optIdx})
+                            <span className="badge bg-success ms-2 py-0 px-2 small">
+                              Correct Answer
                             </span>
                           )}
                         </li>
@@ -353,32 +465,33 @@ function ManageQuestions() {
                     })}
                   </ul>
 
-                  <div>
-                    {/* Nút Thêm / Xóa khỏi bài Quiz */}
-                    {inQuiz ? (
-                      <button
-                        className="btn btn-outline-danger btn-sm me-2 px-3"
-                        onClick={() => handleRemoveFromQuiz(q._id)}
-                      >
-                        Remove from Quiz
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-outline-success btn-sm me-2 px-3"
-                        onClick={() => handleAddToQuiz(q._id)}
-                      >
-                        + Add to Quiz
-                      </button>
+                  <div className="d-flex justify-content-end align-items-center gap-2">
+                    {selectedQuizId && (
+                      inQuiz ? (
+                        <button
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={() => handleRemoveFromQuiz(q._id)}
+                        >
+                          Remove from Quiz
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-outline-success btn-sm"
+                          onClick={() => handleAddToQuiz(q._id)}
+                        >
+                          + Add to Quiz
+                        </button>
+                      )
                     )}
 
                     <button
-                      className="btn btn-warning btn-sm me-2 text-dark px-3 fw-semibold"
+                      className="btn btn-outline-primary btn-sm"
                       onClick={() => handleEdit(q)}
                     >
                       Edit
                     </button>
                     <button
-                      className="btn btn-danger btn-sm px-3"
+                      className="btn btn-outline-danger btn-sm"
                       onClick={() => handleDelete(q._id)}
                     >
                       Delete
