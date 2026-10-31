@@ -56,7 +56,7 @@ function ManageQuestions() {
       const payload = {
         text: questionText,
         options,
-        correctAnswerIndex: Number(correctAnswerIndex),
+        correctAnswerIndex: Number(correctAnswerIndex) || 0,
       };
 
       if (editingId) {
@@ -86,7 +86,8 @@ function ManageQuestions() {
       setOptions(['', '', '', '']);
       setCorrectAnswerIndex(0);
       setEditingId(null);
-      fetchQuestions();
+      await fetchQuestions();
+      alert(editingId ? 'Question updated successfully!' : 'Question added successfully!');
     } catch (err) {
       alert(err.response?.data?.message || 'Error saving question');
     } finally {
@@ -188,6 +189,7 @@ function ManageQuestions() {
                 <input
                   type="text"
                   className="form-control"
+                  placeholder="Enter question text..."
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
                   required
@@ -196,21 +198,27 @@ function ManageQuestions() {
             </div>
 
             <div className="row mb-3">
-              <label className="col-sm-3 col-form-label text-secondary pt-2">Options:</label>
+              <label className="col-sm-3 col-form-label text-secondary pt-2">Options (0 - 3):</label>
               <div className="col-sm-9">
                 {options.map((opt, idx) => (
-                  <input
-                    key={idx}
-                    type="text"
-                    className="form-control mb-2"
-                    value={opt}
-                    onChange={(e) => handleOptionChange(idx, e.target.value)}
-                    required
-                  />
+                  <div key={idx} className="input-group mb-2">
+                    <span className="input-group-text bg-light text-muted small" style={{ width: '85px' }}>
+                      Option {idx}
+                    </span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={`Enter answer option ${idx}...`}
+                      value={opt}
+                      onChange={(e) => handleOptionChange(idx, e.target.value)}
+                      required
+                    />
+                  </div>
                 ))}
               </div>
             </div>
 
+            {/* Ô nhập chỉ số đáp án đúng (Correct Answer Index) */}
             <div className="row mb-3 align-items-center">
               <label className="col-sm-3 col-form-label text-secondary">Correct Answer Index:</label>
               <div className="col-sm-9">
@@ -220,9 +228,12 @@ function ManageQuestions() {
                   max="3"
                   className="form-control"
                   value={correctAnswerIndex}
-                  onChange={(e) => setCorrectAnswerIndex(e.target.value)}
+                  onChange={(e) => setCorrectAnswerIndex(e.target.value === '' ? '' : Number(e.target.value))}
                   required
                 />
+                <div className="form-text text-success">
+                  ✓ Đáp án đúng hiện tại: <strong>Option {correctAnswerIndex !== '' ? correctAnswerIndex : 0}</strong> ({options[correctAnswerIndex] || 'Chưa nhập nội dung'})
+                </div>
               </div>
             </div>
 
@@ -251,6 +262,20 @@ function ManageQuestions() {
             <button type="submit" className="btn btn-primary w-100 py-2" disabled={loading}>
               {loading ? 'Processing...' : editingId ? 'Update Question' : 'Add Question'}
             </button>
+            {editingId && (
+              <button
+                type="button"
+                className="btn btn-outline-secondary w-100 py-2 mt-2"
+                onClick={() => {
+                  setEditingId(null);
+                  setQuestionText('');
+                  setOptions(['', '', '', '']);
+                  setCorrectAnswerIndex(0);
+                }}
+              >
+                Cancel Edit
+              </button>
+            )}
           </form>
         </div>
 
@@ -266,19 +291,33 @@ function ManageQuestions() {
                   key={q._id}
                   className={`p-4 ${idx !== questions.length - 1 ? 'border-bottom' : ''}`}
                 >
-                  <div className="d-flex align-items-center mb-3">
-                    <h4 className="fw-bold mb-0 me-3">{q.text}</h4>
+                  <div className="d-flex align-items-center justify-content-between mb-3">
+                    <h4 className="fw-bold mb-0">{q.text}</h4>
                     {inQuiz && (
                       <span className="badge bg-success py-1 px-2">In Quiz</span>
                     )}
                   </div>
 
-                  <ul className="mb-3 ps-3">
-                    {q.options?.map((opt, optIdx) => (
-                      <li key={optIdx} className="mb-1 text-secondary">
-                        {opt}
-                      </li>
-                    ))}
+                  {/* Hiển thị rõ ràng danh sách Options và ĐÁP ÁN ĐÚNG trên UI */}
+                  <ul className="mb-3 ps-3 list-unstyled">
+                    {q.options?.map((opt, optIdx) => {
+                      const isCorrect = optIdx === q.correctAnswerIndex;
+                      return (
+                        <li
+                          key={optIdx}
+                          className={`mb-2 d-flex align-items-center ${
+                            isCorrect ? 'text-success fw-bold' : 'text-secondary'
+                          }`}
+                        >
+                          <span className="me-2">• Option {optIdx}: {opt}</span>
+                          {isCorrect && (
+                            <span className="badge bg-success-subtle text-success border border-success ms-2 small">
+                              ✓ Correct Answer (Index {optIdx})
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
 
                   <div>
