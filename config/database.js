@@ -4,12 +4,12 @@ const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) {
     return;
   }
-  try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('MongoDB connected successfully');
-  } catch (error) {
-    console.error('MongoDB error:', error.message);
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI environment variable is missing in Vercel settings');
   }
+  await mongoose.connect(uri);
+  console.log('MongoDB connected successfully');
 };
 
 module.exports = connectDB;

@@ -29,6 +29,16 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Đảm bảo kết nối MongoDB trước khi xử lý API trên Vercel Serverless
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ message: 'Database connection failed: ' + err.message });
+  }
+});
+
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);

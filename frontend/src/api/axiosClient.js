@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// Ở máy local thì gọi port 3000, lên Vercel thì gọi cùng domain
+// Ở máy local thì gọi port 3000, lên Vercel thì gọi URL Backend Vercel
 const baseURL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
-  : '';
+  : 'https://assignment04-hrfg.vercel.app';
 
 const axiosClient = axios.create({
   baseURL: baseURL,
