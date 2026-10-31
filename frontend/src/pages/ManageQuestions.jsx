@@ -11,6 +11,7 @@ function ManageQuestions() {
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
   const fetchQuestions = async () => {
     try {
@@ -51,35 +52,44 @@ function ManageQuestions() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setMessage({ type: '', text: '' });
 
     try {
       const payload = {
-        text: questionText,
-        options,
+        text: questionText.trim(),
+        options: options.map(o => o.trim()),
         correctAnswerIndex: Number(correctAnswerIndex) || 0,
+        keywords: [],
       };
 
       if (editingId) {
         await axiosClient.put(`/questions/${editingId}`, payload);
+        setMessage({ type: 'success', text: 'Question updated successfully!' });
       } else {
         const res = await axiosClient.post('/questions', payload);
         const newQId = res.data?.question?._id;
 
-        // Nếu admin chọn bài Quiz, tự động thêm câu hỏi này vào Quiz đó
+        // Tự động gán vào bài Quiz (nếu có chọn) trong try/catch riêng biệt
         if (newQId && selectedQuizId) {
-          const targetQuiz = quizzes.find((qz) => qz._id === selectedQuizId);
-          if (targetQuiz) {
-            const currentIds = (targetQuiz.questions || []).map((q) => q._id || q);
-            if (!currentIds.includes(newQId)) {
-              await axiosClient.put(`/quizzes/${selectedQuizId}`, {
-                title: targetQuiz.title,
-                description: targetQuiz.description || '',
-                questions: [...currentIds, newQId],
-              });
-              await fetchQuizzes();
+          try {
+            const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
+            if (targetQuiz) {
+              const currentIds = (targetQuiz.questions || []).map((q) => String(q._id || q));
+              if (!currentIds.includes(String(newQId))) {
+                await axiosClient.put(`/quizzes/${selectedQuizId}`, {
+                  title: targetQuiz.title,
+                  description: targetQuiz.description || '',
+                  questions: [...currentIds, newQId],
+                });
+                await fetchQuizzes();
+              }
             }
+          } catch (syncErr) {
+            console.warn('Could not auto-add to quiz:', syncErr);
           }
         }
+
+        setMessage({ type: 'success', text: 'Question created successfully!' });
       }
 
       setQuestionText('');
@@ -87,9 +97,15 @@ function ManageQuestions() {
       setCorrectAnswerIndex(0);
       setEditingId(null);
       await fetchQuestions();
-      alert(editingId ? 'Question updated successfully!' : 'Question added successfully!');
     } catch (err) {
-      alert(err.response?.data?.message || 'Error saving question');
+      const status = err.response?.status;
+      let errMsg = err.response?.data?.message || err.message;
+      if (status === 401) {
+        errMsg = 'Your session has expired. Please log out and log in again as admin (admin / 12345678).';
+      } else if (status === 403) {
+        errMsg = 'Permission denied. Please make sure you are logged in with an Admin account (admin / 12345678).';
+      }
+      setMessage({ type: 'danger', text: errMsg });
     } finally {
       setLoading(false);
     }
@@ -100,6 +116,7 @@ function ManageQuestions() {
     setQuestionText(q.text);
     setOptions(q.options && q.options.length === 4 ? q.options : ['', '', '', '']);
     setCorrectAnswerIndex(q.correctAnswerIndex ?? 0);
+    setMessage({ type: 'info', text: 'Editing question: ' + q.text });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -107,10 +124,11 @@ function ManageQuestions() {
     if (window.confirm('Are you sure you want to delete this question?')) {
       try {
         await axiosClient.delete(`/questions/${id}`);
-        fetchQuestions();
-        fetchQuizzes();
+        await fetchQuestions();
+        await fetchQuizzes();
+        setMessage({ type: 'success', text: 'Question deleted successfully!' });
       } catch (err) {
-        alert(err.response?.data?.message || 'Error deleting question');
+        setMessage({ type: 'danger', text: err.response?.data?.message || 'Error deleting question' });
       }
     }
   };
@@ -121,11 +139,11 @@ function ManageQuestions() {
       alert('Please select a quiz first');
       return;
     }
-    const targetQuiz = quizzes.find((qz) => qz._id === selectedQuizId);
+    const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
     if (!targetQuiz) return;
 
-    const currentIds = (targetQuiz.questions || []).map((q) => q._id || q);
-    if (currentIds.includes(qId)) {
+    const currentIds = (targetQuiz.questions || []).map((q) => String(q._id || q));
+    if (currentIds.includes(String(qId))) {
       alert('Question is already in this quiz!');
       return;
     }
@@ -137,20 +155,20 @@ function ManageQuestions() {
         questions: [...currentIds, qId],
       });
       await fetchQuizzes();
-      alert('Added question to quiz successfully!');
+      setMessage({ type: 'success', text: 'Added question to quiz successfully!' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add question to quiz');
+      setMessage({ type: 'danger', text: err.response?.data?.message || 'Failed to add question to quiz' });
     }
   };
 
   // Xóa câu hỏi khỏi bài Quiz đang chọn
   const handleRemoveFromQuiz = async (qId) => {
     if (!selectedQuizId) return;
-    const targetQuiz = quizzes.find((qz) => qz._id === selectedQuizId);
+    const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
     if (!targetQuiz) return;
 
-    const currentIds = (targetQuiz.questions || []).map((q) => q._id || q);
-    const updatedIds = currentIds.filter((id) => id !== qId);
+    const currentIds = (targetQuiz.questions || []).map((q) => String(q._id || q));
+    const updatedIds = currentIds.filter((id) => String(id) !== String(qId));
 
     try {
       await axiosClient.put(`/quizzes/${selectedQuizId}`, {
@@ -159,18 +177,18 @@ function ManageQuestions() {
         questions: updatedIds,
       });
       await fetchQuizzes();
-      alert('Removed question from quiz successfully!');
+      setMessage({ type: 'success', text: 'Removed question from quiz successfully!' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove question from quiz');
+      setMessage({ type: 'danger', text: err.response?.data?.message || 'Failed to remove question from quiz' });
     }
   };
 
   // Kiểm tra xem câu hỏi có thuộc quiz đang chọn không
   const isQuestionInSelectedQuiz = (qId) => {
     if (!selectedQuizId) return false;
-    const targetQuiz = quizzes.find((qz) => qz._id === selectedQuizId);
+    const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
     if (!targetQuiz || !targetQuiz.questions) return false;
-    return targetQuiz.questions.some((q) => (q._id || q) === qId);
+    return targetQuiz.questions.some((q) => String(q._id || q) === String(qId));
   };
 
   return (
@@ -179,6 +197,18 @@ function ManageQuestions() {
 
       <div className="container mt-4 mb-5" style={{ maxWidth: '850px' }}>
         <h2 className="fw-bold mb-4">Questions</h2>
+
+        {/* Thông báo trạng thái (Alert Banner) */}
+        {message.text && (
+          <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
+            {message.text}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setMessage({ type: '', text: '' })}
+            ></button>
+          </div>
+        )}
 
         {/* Khung Form Thêm / Cập nhật câu hỏi */}
         <div className="card p-4 mb-5 border-1 shadow-none">
@@ -218,21 +248,23 @@ function ManageQuestions() {
               </div>
             </div>
 
-            {/* Ô nhập chỉ số đáp án đúng (Correct Answer Index) */}
+            {/* Chọn đáp án đúng (Correct Answer Index) dạng Dropdown rõ ràng, không lo gõ nhầm */}
             <div className="row mb-3 align-items-center">
               <label className="col-sm-3 col-form-label text-secondary">Correct Answer Index:</label>
               <div className="col-sm-9">
-                <input
-                  type="number"
-                  min="0"
-                  max="3"
-                  className="form-control"
+                <select
+                  className="form-select"
                   value={correctAnswerIndex}
-                  onChange={(e) => setCorrectAnswerIndex(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => setCorrectAnswerIndex(Number(e.target.value))}
                   required
-                />
+                >
+                  <option value={0}>Option 0: {options[0] || '(chưa nhập)'}</option>
+                  <option value={1}>Option 1: {options[1] || '(chưa nhập)'}</option>
+                  <option value={2}>Option 2: {options[2] || '(chưa nhập)'}</option>
+                  <option value={3}>Option 3: {options[3] || '(chưa nhập)'}</option>
+                </select>
                 <div className="form-text text-success">
-                  ✓ Đáp án đúng hiện tại: <strong>Option {correctAnswerIndex !== '' ? correctAnswerIndex : 0}</strong> ({options[correctAnswerIndex] || 'Chưa nhập nội dung'})
+                  ✓ Đáp án đúng được chọn: <strong>Option {correctAnswerIndex}</strong>
                 </div>
               </div>
             </div>
@@ -271,6 +303,7 @@ function ManageQuestions() {
                   setQuestionText('');
                   setOptions(['', '', '', '']);
                   setCorrectAnswerIndex(0);
+                  setMessage({ type: '', text: '' });
                 }}
               >
                 Cancel Edit
