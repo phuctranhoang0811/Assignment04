@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/users/(.*)", "destination": "/api/index.js" },
+    { "source": "/users", "destination": "/api/index.js" },
+    { "source": "/quizzes/(.*)", "destination": "/api/index.js" },
+    { "source": "/quizzes", "destination": "/api/index.js" },
+    { "source": "/questions/(.*)", "destination": "/api/index.js" },
+    { "source": "/questions", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

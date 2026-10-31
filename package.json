@@ -1,10 +1,11 @@
 {
-  "name": "assignment03",
-  "version": "0.0.0",
+  "name": "assignment04",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "start": "nodemon ./bin/www",
-    "dev": "nodemon ./bin/www"
+    "dev": "nodemon ./bin/www",
+    "build": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// Ở máy local thì gọi port 3000, lên Vercel thì gọi cùng domain
+const baseURL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : '';
+
 const axiosClient = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,4 +21,3 @@ axiosClient.interceptors.request.use((config) => {
 });
 
 export default axiosClient;
-
