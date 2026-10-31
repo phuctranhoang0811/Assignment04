@@ -5,6 +5,7 @@ import axiosClient from '../api/axiosClient';
 function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
@@ -13,8 +14,12 @@ function Register() {
     e.preventDefault();
     setError('');
     try {
-      await axiosClient.post('/users/register', { username, password });
-      setSuccess('User registered successfully! Redirecting to login...');
+      await axiosClient.post('/users/register', {
+        username: username.trim(),
+        password,
+        isAdmin,
+      });
+      setSuccess('Account registered successfully! Redirecting to login...');
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
@@ -39,7 +44,7 @@ function Register() {
             />
           </div>
 
-          <div className="mb-4 text-start">
+          <div className="mb-3 text-start">
             <label className="form-label text-secondary small">Password</label>
             <input
               type="password"
@@ -48,6 +53,19 @@ function Register() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+
+          <div className="form-check mb-4 text-start">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id="adminCheckbox"
+              checked={isAdmin}
+              onChange={(e) => setIsAdmin(e.target.checked)}
+            />
+            <label className="form-check-label text-secondary small" htmlFor="adminCheckbox">
+              Register as Admin account
+            </label>
           </div>
 
           <button type="submit" className="btn btn-primary w-100 py-2 mb-3">
@@ -66,4 +84,3 @@ function Register() {
 }
 
 export default Register;
-
