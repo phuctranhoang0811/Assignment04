@@ -13,7 +13,6 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Đường dẫn mặc định */}
         <Route
           path="/"
           element={
@@ -34,6 +33,10 @@ function App() {
           element={isAuthenticated ? <UserDashboard /> : <Navigate to="/login" replace />}
         />
         <Route
+          path="/dashboard/articles"
+          element={isAuthenticated ? <UserDashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/dashboard/quiz"
           element={isAuthenticated ? <QuizPage /> : <Navigate to="/login" replace />}
         />
@@ -48,11 +51,15 @@ function App() {
           element={isAuthenticated && isAdmin ? <ManageQuestions /> : <Navigate to="/login" replace />}
         />
         <Route
+          path="/admin/articles"
+          element={isAuthenticated && isAdmin ? <ManageQuizzes /> : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/admin/quizzes"
           element={isAuthenticated && isAdmin ? <ManageQuizzes /> : <Navigate to="/login" replace />}
         />
 
-        {/* 404 Route */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

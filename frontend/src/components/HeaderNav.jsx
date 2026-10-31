@@ -24,13 +24,14 @@ function HeaderNav({ title = 'Dashboard' }) {
           <>
             <Link to="/admin" className="text-decoration-none text-dark">Home</Link>
             <Link to="/admin/questions" className="text-decoration-none text-dark">Manage Questions</Link>
-            <Link to="/admin/quizzes" className="text-decoration-none text-dark">Manage Quizzes</Link>
+            <Link to="/admin/articles" className="text-decoration-none text-dark">Manage Articles</Link>
             <span className="text-secondary" style={{ cursor: 'pointer' }} onClick={handleLogout}>Logout</span>
           </>
         ) : (
           <>
             <Link to="/dashboard" className="text-decoration-none text-dark">Home</Link>
             <Link to="/dashboard/quiz" className="text-decoration-none text-dark">Quiz</Link>
+            <Link to="/dashboard" className="text-decoration-none text-dark">Article</Link>
             <span className="text-secondary" style={{ cursor: 'pointer' }} onClick={handleLogout}>Logout</span>
           </>
         )}
