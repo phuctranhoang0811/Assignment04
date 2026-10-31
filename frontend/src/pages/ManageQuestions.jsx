@@ -60,33 +60,56 @@ function ManageQuestions() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    try {
-      const payload = {
-        text: questionText.trim(),
-        options: options.map((o) => o.trim()),
-        correctAnswerIndex: Number(correctAnswerIndex) || 0,
-        keywords: [],
-      };
+    const payload = {
+      text: questionText.trim(),
+      options: options.map((o) => o.trim()),
+      correctAnswerIndex: Number(correctAnswerIndex) || 0,
+      keywords: [],
+    };
 
+    try {
       if (editingId) {
-        await axiosClient.put(`/questions/${editingId}`, payload);
+        // Cập nhật giao diện tức thì (Optimistic UI)
+        setQuestions((prev) =>
+          prev.map((q) => (q._id === editingId ? { ...q, ...payload } : q))
+        );
         setMessage({ type: 'success', text: 'Question updated successfully!' });
+
+        const res = await axiosClient.put(`/questions/${editingId}`, payload);
+        if (res.data?.question) {
+          setQuestions((prev) =>
+            prev.map((q) => (q._id === editingId ? res.data.question : q))
+          );
+        }
       } else {
         const res = await axiosClient.post('/questions', payload);
-        const newQId = res.data?.question?._id;
+        const newQ = res.data?.question;
+        const newQId = newQ?._id;
+
+        if (newQ) {
+          setQuestions((prev) => [newQ, ...prev]);
+        }
 
         if (newQId && selectedQuizId) {
           try {
             const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
             if (targetQuiz) {
-              const currentIds = (targetQuiz.questions || []).map((q) => String(q._id || q));
+              const currentIds = (targetQuiz.questions || []).map((q) =>
+                String(typeof q === 'object' ? q._id : q)
+              );
               if (!currentIds.includes(String(newQId))) {
+                setQuizzes((prev) =>
+                  prev.map((qz) =>
+                    String(qz._id) === String(selectedQuizId)
+                      ? { ...qz, questions: [...(qz.questions || []), newQ] }
+                      : qz
+                  )
+                );
                 await axiosClient.put(`/quizzes/${selectedQuizId}`, {
                   title: targetQuiz.title,
                   description: targetQuiz.description || '',
                   questions: [...currentIds, newQId],
                 });
-                await fetchQuizzes();
               }
             }
           } catch (syncErr) {
@@ -101,9 +124,9 @@ function ManageQuestions() {
       setOptions(['', '', '', '']);
       setCorrectAnswerIndex(0);
       setEditingId(null);
-      await fetchQuestions();
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error saving question' });
+      fetchQuestions();
     } finally {
       setLoading(false);
     }
@@ -120,13 +143,15 @@ function ManageQuestions() {
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this question?')) {
+      // Xoá tức thì khỏi state giao diện
+      setQuestions((prev) => prev.filter((q) => q._id !== id));
+      setMessage({ type: 'success', text: 'Question deleted successfully!' });
+
       try {
         await axiosClient.delete(`/questions/${id}`);
-        await fetchQuestions();
-        await fetchQuizzes();
-        setMessage({ type: 'success', text: 'Question deleted successfully!' });
       } catch (err) {
         setMessage({ type: 'danger', text: err.response?.data?.message || 'Error deleting question' });
+        fetchQuestions();
       }
     }
   };
@@ -139,11 +164,23 @@ function ManageQuestions() {
     const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
     if (!targetQuiz) return;
 
-    const currentIds = (targetQuiz.questions || []).map((q) => String(q._id || q));
+    const currentIds = (targetQuiz.questions || []).map((q) =>
+      String(typeof q === 'object' ? q._id : q)
+    );
     if (currentIds.includes(String(qId))) {
       alert('Question is already in this quiz!');
       return;
     }
+
+    // Cập nhật state tức thì (0ms)
+    setQuizzes((prev) =>
+      prev.map((qz) =>
+        String(qz._id) === String(selectedQuizId)
+          ? { ...qz, questions: [...(qz.questions || []), qId] }
+          : qz
+      )
+    );
+    setMessage({ type: 'success', text: 'Added question to quiz successfully!' });
 
     try {
       await axiosClient.put(`/quizzes/${selectedQuizId}`, {
@@ -151,10 +188,9 @@ function ManageQuestions() {
         description: targetQuiz.description || '',
         questions: [...currentIds, qId],
       });
-      await fetchQuizzes();
-      setMessage({ type: 'success', text: 'Added question to quiz successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Failed to add question to quiz' });
+      fetchQuizzes();
     }
   };
 
@@ -163,8 +199,25 @@ function ManageQuestions() {
     const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
     if (!targetQuiz) return;
 
-    const currentIds = (targetQuiz.questions || []).map((q) => String(q._id || q));
+    const currentIds = (targetQuiz.questions || []).map((q) =>
+      String(typeof q === 'object' ? q._id : q)
+    );
     const updatedIds = currentIds.filter((id) => String(id) !== String(qId));
+
+    // Cập nhật state tức thì (0ms)
+    setQuizzes((prev) =>
+      prev.map((qz) =>
+        String(qz._id) === String(selectedQuizId)
+          ? {
+              ...qz,
+              questions: (qz.questions || []).filter(
+                (q) => String(typeof q === 'object' ? q._id : q) !== String(qId)
+              ),
+            }
+          : qz
+      )
+    );
+    setMessage({ type: 'success', text: 'Removed question from quiz successfully!' });
 
     try {
       await axiosClient.put(`/quizzes/${selectedQuizId}`, {
@@ -172,10 +225,9 @@ function ManageQuestions() {
         description: targetQuiz.description || '',
         questions: updatedIds,
       });
-      await fetchQuizzes();
-      setMessage({ type: 'success', text: 'Removed question from quiz successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Failed to remove question from quiz' });
+      fetchQuizzes();
     }
   };
 
@@ -194,10 +246,12 @@ function ManageQuestions() {
       setNewQuizTitle('');
       setNewQuizDescription('');
       setShowQuizModal(false);
-      await fetchQuizzes();
-      if (createdQuiz?._id) {
+
+      if (createdQuiz) {
+        setQuizzes((prev) => [...prev, createdQuiz]);
         setSelectedQuizId(createdQuiz._id);
       }
+
       setMessage({
         type: 'success',
         text: `Created new Quiz "${createdQuiz?.title || 'Quiz'}" successfully and selected it!`,
@@ -216,7 +270,9 @@ function ManageQuestions() {
     if (!selectedQuizId) return false;
     const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
     if (!targetQuiz || !targetQuiz.questions) return false;
-    return targetQuiz.questions.some((q) => String(q._id || q) === String(qId));
+    return targetQuiz.questions.some(
+      (q) => String(typeof q === 'object' ? q._id : q) === String(qId)
+    );
   };
 
   return (
@@ -404,7 +460,7 @@ function ManageQuestions() {
             </div>
 
             <button type="submit" className="btn btn-primary w-100 py-2" disabled={loading}>
-              {loading ? 'Processing...' : editingId ? 'Update Question' : 'Add Question'}
+              {loading ? 'Saving...' : editingId ? 'Update Question' : 'Add Question'}
             </button>
             {editingId && (
               <button

@@ -62,19 +62,28 @@ function ManageQuizzes() {
     setMessage({ type: '', text: '' });
 
     try {
-      await axiosClient.post('/quizzes', {
+      const res = await axiosClient.post('/quizzes', {
         title: title.trim(),
         description: description.trim(),
         questions: selectedNewQuestions,
       });
 
+      const newQz = res.data?.quiz;
+      if (newQz) {
+        const fullQz = {
+          ...newQz,
+          questions: allQuestions.filter((q) => selectedNewQuestions.includes(q._id)),
+        };
+        setQuizzes((prev) => [...prev, fullQz]);
+      }
+
       setTitle('');
       setDescription('');
       setSelectedNewQuestions([]);
-      await fetchData();
       setMessage({ type: 'success', text: 'Quiz / Article created successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error creating quiz' });
+      fetchData();
     } finally {
       setLoading(false);
     }
@@ -87,28 +96,40 @@ function ManageQuizzes() {
   };
 
   const handleSaveEditQuiz = async (quizId) => {
+    // Cập nhật giao diện tức thì (Optimistic)
+    setQuizzes((prev) =>
+      prev.map((q) =>
+        q._id === quizId
+          ? { ...q, title: editTitle.trim(), description: editDescription.trim() }
+          : q
+      )
+    );
+    setEditingQuizId(null);
+    setMessage({ type: 'success', text: 'Quiz updated successfully!' });
+
     try {
       await axiosClient.put(`/quizzes/${quizId}`, {
         title: editTitle.trim(),
         description: editDescription.trim(),
       });
-      setEditingQuizId(null);
-      await fetchData();
-      setMessage({ type: 'success', text: 'Quiz updated successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error updating quiz' });
+      fetchData();
     }
   };
 
   const handleDeleteQuiz = async (id) => {
     if (!window.confirm('Are you sure you want to delete this quiz / article?')) return;
 
+    // Xoá tức thì khỏi state
+    setQuizzes((prev) => prev.filter((q) => q._id !== id));
+    setMessage({ type: 'success', text: 'Deleted quiz successfully!' });
+
     try {
       await axiosClient.delete(`/quizzes/${id}`);
-      await fetchData();
-      setMessage({ type: 'success', text: 'Deleted quiz successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error deleting quiz' });
+      fetchData();
     }
   };
 
@@ -119,17 +140,28 @@ function ManageQuizzes() {
     const currentIds = (quiz.questions || []).map((q) => (typeof q === 'object' ? q._id : q));
     if (currentIds.includes(qIdToAdd)) return;
 
+    const questionObj = allQuestions.find((q) => q._id === qIdToAdd) || qIdToAdd;
+
+    // Cập nhật giao diện tức thì (Optimistic)
+    setQuizzes((prev) =>
+      prev.map((qz) =>
+        qz._id === quiz._id
+          ? { ...qz, questions: [...(qz.questions || []), questionObj] }
+          : qz
+      )
+    );
+    setSelectedAddQuestion({ ...selectedAddQuestion, [quiz._id]: '' });
+    setMessage({ type: 'success', text: 'Added question to quiz successfully!' });
+
     try {
       await axiosClient.put(`/quizzes/${quiz._id}`, {
         title: quiz.title,
         description: quiz.description || '',
         questions: [...currentIds, qIdToAdd],
       });
-      setSelectedAddQuestion({ ...selectedAddQuestion, [quiz._id]: '' });
-      await fetchData();
-      setMessage({ type: 'success', text: 'Added question to quiz successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error adding question' });
+      fetchData();
     }
   };
 
@@ -137,16 +169,30 @@ function ManageQuizzes() {
     const currentIds = (quiz.questions || []).map((q) => (typeof q === 'object' ? q._id : q));
     const updatedIds = currentIds.filter((id) => id !== questionIdToRemove);
 
+    // Cập nhật giao diện tức thì (Optimistic)
+    setQuizzes((prev) =>
+      prev.map((qz) =>
+        qz._id === quiz._id
+          ? {
+              ...qz,
+              questions: (qz.questions || []).filter(
+                (q) => (typeof q === 'object' ? q._id : q) !== questionIdToRemove
+              ),
+            }
+          : qz
+      )
+    );
+    setMessage({ type: 'success', text: 'Removed question from quiz successfully!' });
+
     try {
       await axiosClient.put(`/quizzes/${quiz._id}`, {
         title: quiz.title,
         description: quiz.description || '',
         questions: updatedIds,
       });
-      await fetchData();
-      setMessage({ type: 'success', text: 'Removed question from quiz successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error removing question' });
+      fetchData();
     }
   };
 

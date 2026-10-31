@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 
@@ -11,10 +10,11 @@ const {
 } = require('../middleware/authenticate');
 
 // 1. GET ALL QUESTIONS - PUBLIC
-router.get('/', verifyUser, verifyAdmin,async (req, res) => {
+router.get('/', verifyUser, verifyAdmin, async (req, res) => {
     try {
         const questions = await Question.find()
-            .populate('author', 'username');
+            .populate('author', 'username')
+            .lean();
 
         res.status(200).json(questions);
     } catch (error) {
@@ -27,7 +27,7 @@ router.get('/:questionId', async (req, res) => {
     try {
         const question = await Question.findById(
             req.params.questionId
-        ).populate('author', 'username');
+        ).populate('author', 'username').lean();
 
         if (!question) {
             return res.status(404).json({
@@ -42,7 +42,7 @@ router.get('/:questionId', async (req, res) => {
 });
 
 // 3. CREATE QUESTION - LOGIN REQUIRED
-router.post('/', verifyUser,verifyAdmin, async (req, res) => {
+router.post('/', verifyUser, verifyAdmin, async (req, res) => {
     try {
         const {
             text,

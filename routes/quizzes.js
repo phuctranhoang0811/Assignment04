@@ -12,7 +12,7 @@ const {
 // 1. GET ALL QUIZZES - PUBLIC
 router.get('/', async (req, res) => {
   try {
-    const quizzes = await Quiz.find().populate('questions');
+    const quizzes = await Quiz.find().populate('questions').lean();
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 // 2. GET QUIZ BY ID - PUBLIC
 router.get('/:quizId', async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.quizId).populate('questions');
+    const quiz = await Quiz.findById(req.params.quizId).populate('questions').lean();
 
     if (!quiz) {
       return res.status(404).json({

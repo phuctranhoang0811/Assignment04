@@ -1,18 +1,30 @@
 const mongoose = require('mongoose');
 
+let cachedPromise = null;
+
 const connectDB = async () => {
-  // Chỉ return khi đã thực sự kết nối thành công (readyState === 1)
   if (mongoose.connection.readyState === 1) {
-    return;
+    return mongoose.connection;
   }
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('MONGODB_URI environment variable is missing');
+
+  if (!cachedPromise) {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      throw new Error('MONGODB_URI environment variable is missing');
+    }
+    cachedPromise = mongoose
+      .connect(uri, {
+        serverSelectionTimeoutMS: 5000,
+        maxPoolSize: 10,
+      })
+      .catch((err) => {
+        cachedPromise = null;
+        throw err;
+      });
   }
-  await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 5000,
-  });
-  console.log('MongoDB connected successfully');
+
+  await cachedPromise;
+  return mongoose.connection;
 };
 
 module.exports = connectDB;
