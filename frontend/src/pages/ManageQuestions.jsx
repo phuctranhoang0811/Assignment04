@@ -4,8 +4,6 @@ import HeaderNav from '../components/HeaderNav';
 
 function ManageQuestions() {
   const [questions, setQuestions] = useState([]);
-  const [quizzes, setQuizzes] = useState([]);
-  const [selectedQuizId, setSelectedQuizId] = useState('');
   const [questionText, setQuestionText] = useState('');
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState(0);
@@ -24,23 +22,8 @@ function ManageQuestions() {
     }
   };
 
-  const fetchQuizzes = async () => {
-    try {
-      const res = await axiosClient.get('/quizzes');
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        setQuizzes(res.data);
-        if (!selectedQuizId) {
-          setSelectedQuizId(res.data[0]._id);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching quizzes:', err);
-    }
-  };
-
   useEffect(() => {
     fetchQuestions();
-    fetchQuizzes();
   }, []);
 
   const handleOptionChange = (index, value) => {
@@ -77,34 +60,9 @@ function ManageQuestions() {
       } else {
         const res = await axiosClient.post('/questions', payload);
         const newQ = res.data?.question;
-        const newQId = newQ?._id;
 
         if (newQ) {
           setQuestions((prev) => [newQ, ...prev]);
-        }
-
-        if (newQId && selectedQuizId) {
-          try {
-            const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
-            if (targetQuiz) {
-              const currentIds = (targetQuiz.questions || [])
-                .filter(Boolean)
-                .map((q) => String(q && typeof q === 'object' ? (q._id || q) : q))
-                .filter((id) => id && id !== 'undefined' && id !== 'null');
-
-              const newQIdStr = String(newQId);
-              if (!currentIds.includes(newQIdStr)) {
-                await axiosClient.put(`/quizzes/${selectedQuizId}`, {
-                  title: targetQuiz.title,
-                  description: targetQuiz.description || '',
-                  questions: [...currentIds, newQIdStr],
-                });
-                await fetchQuizzes();
-              }
-            }
-          } catch (syncErr) {
-            console.error('Error auto-adding to quiz:', syncErr);
-          }
         }
 
         setMessage({ type: 'success', text: 'Question created successfully!' });
@@ -213,26 +171,6 @@ function ManageQuestions() {
               </div>
             </div>
 
-            {quizzes.length > 0 && (
-              <div className="row mb-3 align-items-center">
-                <label className="col-sm-2 col-form-label text-secondary small">Add to Quiz:</label>
-                <div className="col-sm-10">
-                  <select
-                    className="form-select form-select-sm"
-                    value={selectedQuizId}
-                    onChange={(e) => setSelectedQuizId(e.target.value)}
-                  >
-                    <option value="">-- Do not add to quiz --</option>
-                    {quizzes.map((qz) => (
-                      <option key={qz._id} value={qz._id}>
-                        {qz.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
             <button type="submit" className="btn btn-primary w-100 py-2 mt-1" disabled={loading}>
               {loading ? 'Saving...' : editingId ? 'Update Question' : 'Add Question'}
             </button>
@@ -291,16 +229,16 @@ function ManageQuestions() {
                     style={{ backgroundColor: '#ffc107', borderColor: '#ffc107' }}
                     onClick={() => handleEdit(q)}
                   >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-danger btn-sm text-white px-3 fw-semibold"
-                      onClick={() => handleDelete(q._id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm text-white px-3 fw-semibold"
+                    onClick={() => handleDelete(q._id)}
+                  >
+                    Delete
+                  </button>
                 </div>
+              </div>
             ))
           )}
         </div>
