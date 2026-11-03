@@ -235,6 +235,9 @@ function ManageQuestions() {
                   onChange={(e) => setCorrectAnswerIndex(e.target.value)}
                   required
                 />
+                <div className="form-text text-success small mt-1">
+                  ✓ Selected: Option {correctAnswerIndex} {options[correctAnswerIndex] ? `("${options[correctAnswerIndex]}")` : ''}
+                </div>
               </div>
             </div>
 
@@ -292,9 +295,22 @@ function ManageQuestions() {
                 <h3 className="fw-bold fs-4 mb-2">{q.text}</h3>
 
                 <ul className="ps-4 mb-3">
-                  {q.options?.map((opt, optIdx) => (
-                    <li key={optIdx} className="mb-1">{opt}</li>
-                  ))}
+                  {q.options?.map((opt, optIdx) => {
+                    const isCorrect = Number(q.correctAnswerIndex) === optIdx;
+                    return (
+                      <li
+                        key={optIdx}
+                        className={`mb-1 ${isCorrect ? 'text-success fw-bold' : ''}`}
+                      >
+                        {opt}
+                        {isCorrect && (
+                          <span className="badge bg-success ms-2 py-0 px-2" style={{ fontSize: '0.75rem' }}>
+                            ✓ Correct Answer
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
