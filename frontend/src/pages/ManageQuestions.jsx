@@ -152,8 +152,8 @@ function ManageQuestions() {
     <div>
       <HeaderNav title="Admin Dashboard" />
 
-      <div className="container mt-4 mb-5" style={{ maxWidth: '800px' }}>
-        <h2 className="fw-normal mb-4">Questions</h2>
+      <div className="container mt-4 mb-5" style={{ maxWidth: '850px' }}>
+        <h2 className="fw-bold mb-3">Questions</h2>
 
         {message.text && (
           <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
@@ -166,16 +166,15 @@ function ManageQuestions() {
           </div>
         )}
 
-        {/* Clean minimal Question Form */}
-        <div className="card p-4 mb-4 border-1 shadow-none">
+        {/* Form Question matching Image 6 exactly */}
+        <div className="card p-3 mb-4 border-1 rounded-1 shadow-none">
           <form onSubmit={handleSubmit}>
             <div className="row mb-3 align-items-center">
-              <label className="col-sm-3 col-form-label text-secondary">Question Text:</label>
-              <div className="col-sm-9">
+              <label className="col-sm-2 col-form-label text-dark">Question Text:</label>
+              <div className="col-sm-10">
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Enter question text..."
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
                   required
@@ -184,62 +183,57 @@ function ManageQuestions() {
             </div>
 
             <div className="row mb-3">
-              <label className="col-sm-3 col-form-label text-secondary pt-2">Options (0 - 3):</label>
-              <div className="col-sm-9">
+              <label className="col-sm-2 col-form-label text-dark pt-1">Options:</label>
+              <div className="col-sm-10 d-flex flex-column gap-2">
                 {options.map((opt, idx) => (
-                  <div key={idx} className="input-group mb-2">
-                    <span className="input-group-text bg-light text-muted small" style={{ width: '85px' }}>
-                      Option {idx}
-                    </span>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder={`Enter option ${idx}...`}
-                      value={opt}
-                      onChange={(e) => handleOptionChange(idx, e.target.value)}
-                      required
-                    />
-                  </div>
+                  <input
+                    key={idx}
+                    type="text"
+                    className="form-control"
+                    value={opt}
+                    onChange={(e) => handleOptionChange(idx, e.target.value)}
+                    required
+                  />
                 ))}
               </div>
             </div>
 
             <div className="row mb-3 align-items-center">
-              <label className="col-sm-3 col-form-label text-secondary">Correct Answer Index:</label>
-              <div className="col-sm-9">
-                <select
-                  className="form-select"
+              <label className="col-sm-2 col-form-label text-dark">Correct Answer Index:</label>
+              <div className="col-sm-10">
+                <input
+                  type="number"
+                  min="0"
+                  max="3"
+                  className="form-control"
                   value={correctAnswerIndex}
-                  onChange={(e) => setCorrectAnswerIndex(Number(e.target.value))}
+                  onChange={(e) => setCorrectAnswerIndex(e.target.value)}
                   required
-                >
-                  <option value={0}>0: {options[0] || '(empty)'}</option>
-                  <option value={1}>1: {options[1] || '(empty)'}</option>
-                  <option value={2}>2: {options[2] || '(empty)'}</option>
-                  <option value={3}>3: 3: {options[3] || '(empty)'}</option>
-                </select>
+                />
               </div>
             </div>
 
-            <div className="row mb-4 align-items-center">
-              <label className="col-sm-3 col-form-label text-secondary">Add to Quiz:</label>
-              <div className="col-sm-9">
-                <select
-                  className="form-select"
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                >
-                  <option value="">-- Do not add to quiz --</option>
-                  {quizzes.map((qz) => (
-                    <option key={qz._id} value={qz._id}>
-                      {qz.title}
-                    </option>
-                  ))}
-                </select>
+            {quizzes.length > 0 && (
+              <div className="row mb-3 align-items-center">
+                <label className="col-sm-2 col-form-label text-secondary small">Add to Quiz:</label>
+                <div className="col-sm-10">
+                  <select
+                    className="form-select form-select-sm"
+                    value={selectedQuizId}
+                    onChange={(e) => setSelectedQuizId(e.target.value)}
+                  >
+                    <option value="">-- Do not add to quiz --</option>
+                    {quizzes.map((qz) => (
+                      <option key={qz._id} value={qz._id}>
+                        {qz.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
 
-            <button type="submit" className="btn btn-primary w-100 py-2" disabled={loading}>
+            <button type="submit" className="btn btn-primary w-100 py-2 mt-1" disabled={loading}>
               {loading ? 'Saving...' : editingId ? 'Update Question' : 'Add Question'}
             </button>
             {editingId && (
@@ -260,8 +254,8 @@ function ManageQuestions() {
           </form>
         </div>
 
-        {/* Clean minimal questions list */}
-        <div className="card border-1 shadow-none">
+        {/* Questions List matching Image 6 exactly */}
+        <div className="card border-1 rounded-1 shadow-none">
           {questions.length === 0 ? (
             <div className="p-4 text-center text-muted">No questions yet.</div>
           ) : (
@@ -270,31 +264,24 @@ function ManageQuestions() {
                 key={q._id}
                 className={`p-4 ${idx !== questions.length - 1 ? 'border-bottom' : ''}`}
               >
-                <h5 className="fw-bold mb-2">{q.text}</h5>
+                <h3 className="fw-bold fs-4 mb-2">{q.text}</h3>
 
-                <ul className="mb-3 ps-3 list-unstyled">
+                <ul className="ps-4 mb-3">
                   {q.options?.map((opt, optIdx) => (
-                    <li key={optIdx} className="py-1 text-secondary small">
-                      <span className="me-2 text-dark font-monospace">({optIdx})</span>
-                      {opt}
-                      {optIdx === q.correctAnswerIndex && (
-                        <span className="badge bg-success ms-2 py-0 px-2" style={{ fontSize: '0.75rem' }}>
-                          Correct
-                        </span>
-                      )}
-                    </li>
+                    <li key={optIdx} className="mb-1">{opt}</li>
                   ))}
                 </ul>
 
-                <div className="d-flex justify-content-end gap-2">
+                <div>
                   <button
-                    className="btn btn-outline-primary btn-sm"
+                    className="btn btn-warning btn-sm me-2 text-dark px-3 fw-semibold"
+                    style={{ backgroundColor: '#ffc107', borderColor: '#ffc107' }}
                     onClick={() => handleEdit(q)}
                   >
                     Edit
                   </button>
                   <button
-                    className="btn btn-outline-danger btn-sm"
+                    className="btn btn-danger btn-sm text-white px-3 fw-semibold"
                     onClick={() => handleDelete(q._id)}
                   >
                     Delete
