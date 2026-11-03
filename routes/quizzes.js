@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 
@@ -60,16 +59,15 @@ router.post('/', verifyUser, verifyAdmin, async (req, res) => {
 router.put('/:quizId', verifyUser, verifyAdmin, async (req, res) => {
   try {
     const { title, description, questions } = req.body;
- const updateData = { title, description };
+    const updateData = { title, description };
     if (questions !== undefined) {
       updateData.questions = questions;
     }
     const quiz = await Quiz.findByIdAndUpdate(
       req.params.quizId,
       updateData,
-    
       { new: true, runValidators: true }
-    );
+    ).populate('questions').lean();
 
     if (!quiz) {
       return res.status(404).json({

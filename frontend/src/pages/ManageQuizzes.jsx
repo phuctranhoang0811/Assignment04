@@ -54,6 +54,7 @@ function ManageQuizzes() {
       setTitle('');
       setDescription('');
       setMessage({ type: 'success', text: 'Created quiz successfully!' });
+      await fetchData();
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error creating quiz' });
       fetchData();
@@ -70,6 +71,7 @@ function ManageQuizzes() {
 
     try {
       await axiosClient.delete(`/quizzes/${id}`);
+      await fetchData();
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error deleting quiz' });
       fetchData();
@@ -80,27 +82,26 @@ function ManageQuizzes() {
     const qIdToAdd = selectedAddQuestion[quiz._id];
     if (!qIdToAdd) return;
 
-    const currentIds = (quiz.questions || []).map((q) => (typeof q === 'object' ? q._id : q));
-    if (currentIds.includes(qIdToAdd)) return;
+    const currentIds = (quiz.questions || [])
+      .filter(Boolean)
+      .map((q) => String(q && typeof q === 'object' ? (q._id || q) : q))
+      .filter((id) => id && id !== 'undefined' && id !== 'null');
 
-    const questionObj = allQuestions.find((q) => q._id === qIdToAdd) || qIdToAdd;
-
-    setQuizzes((prev) =>
-      prev.map((qz) =>
-        qz._id === quiz._id
-          ? { ...qz, questions: [...(qz.questions || []), questionObj] }
-          : qz
-      )
-    );
-    setSelectedAddQuestion({ ...selectedAddQuestion, [quiz._id]: '' });
-    setMessage({ type: 'success', text: 'Added question to quiz!' });
+    const cleanQId = String(qIdToAdd);
+    if (currentIds.includes(cleanQId)) {
+      setMessage({ type: 'info', text: 'Question is already in this quiz!' });
+      return;
+    }
 
     try {
       await axiosClient.put(`/quizzes/${quiz._id}`, {
         title: quiz.title,
         description: quiz.description || '',
-        questions: [...currentIds, qIdToAdd],
+        questions: [...currentIds, cleanQId],
       });
+      setSelectedAddQuestion({ ...selectedAddQuestion, [quiz._id]: '' });
+      await fetchData();
+      setMessage({ type: 'success', text: `Added question to "${quiz.title}" successfully!` });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error adding question' });
       fetchData();
@@ -108,22 +109,13 @@ function ManageQuizzes() {
   };
 
   const handleRemoveQuestionFromQuiz = async (quiz, questionIdToRemove) => {
-    const currentIds = (quiz.questions || []).map((q) => (typeof q === 'object' ? q._id : q));
-    const updatedIds = currentIds.filter((id) => id !== questionIdToRemove);
+    const currentIds = (quiz.questions || [])
+      .filter(Boolean)
+      .map((q) => String(q && typeof q === 'object' ? (q._id || q) : q))
+      .filter((id) => id && id !== 'undefined' && id !== 'null');
 
-    setQuizzes((prev) =>
-      prev.map((qz) =>
-        qz._id === quiz._id
-          ? {
-              ...qz,
-              questions: (qz.questions || []).filter(
-                (q) => (typeof q === 'object' ? q._id : q) !== questionIdToRemove
-              ),
-            }
-          : qz
-      )
-    );
-    setMessage({ type: 'success', text: 'Removed question from quiz!' });
+    const cleanIdToRemove = String(questionIdToRemove);
+    const updatedIds = currentIds.filter((id) => id !== cleanIdToRemove);
 
     try {
       await axiosClient.put(`/quizzes/${quiz._id}`, {
@@ -131,6 +123,8 @@ function ManageQuizzes() {
         description: quiz.description || '',
         questions: updatedIds,
       });
+      await fetchData();
+      setMessage({ type: 'success', text: `Removed question from "${quiz.title}"!` });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error removing question' });
       fetchData();
@@ -200,10 +194,13 @@ function ManageQuizzes() {
           </div>
         ) : (
           quizzes.map((qz) => {
-            const currentQIds = (qz.questions || []).map((q) =>
-              typeof q === 'object' ? q._id : q
+            const currentQIds = (qz.questions || [])
+              .filter(Boolean)
+              .map((q) => String(q && typeof q === 'object' ? (q._id || q) : q));
+
+            const availableToAdd = allQuestions.filter(
+              (q) => !currentQIds.includes(String(q._id))
             );
-            const availableToAdd = allQuestions.filter((q) => !currentQIds.includes(q._id));
 
             return (
               <div key={qz._id} className="card p-4 mb-3 border-1 shadow-none">
@@ -212,7 +209,7 @@ function ManageQuizzes() {
                     <h5 className="fw-bold mb-1">{qz.title}</h5>
                     <p className="text-secondary mb-1 small">{qz.description || 'No description'}</p>
                     <span className="badge bg-secondary">
-                      {qz.questions?.length || 0} Questions
+                      {qz.questions?.filter(Boolean).length || 0} Questions
                     </span>
                   </div>
 
@@ -225,9 +222,9 @@ function ManageQuizzes() {
                 </div>
 
                 {/* List questions inside quiz */}
-                {qz.questions && qz.questions.length > 0 && (
+                {qz.questions && qz.questions.filter(Boolean).length > 0 && (
                   <div className="my-2 border rounded p-2 bg-light">
-                    {qz.questions.map((q, idx) => {
+                    {qz.questions.filter(Boolean).map((q, idx) => {
                       const qId = typeof q === 'object' ? q._id : q;
                       const qText = typeof q === 'object' ? q.text : `Question ID: ${q}`;
                       return (
