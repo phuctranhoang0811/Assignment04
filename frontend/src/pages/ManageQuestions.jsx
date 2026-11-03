@@ -4,6 +4,8 @@ import HeaderNav from '../components/HeaderNav';
 
 function ManageQuestions() {
   const [questions, setQuestions] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
+  const [selectedQuizId, setSelectedQuizId] = useState('');
   const [questionText, setQuestionText] = useState('');
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState(0);
@@ -22,8 +24,20 @@ function ManageQuestions() {
     }
   };
 
+  const fetchQuizzes = async () => {
+    try {
+      const res = await axiosClient.get('/quizzes');
+      if (Array.isArray(res.data)) {
+        setQuizzes(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching quizzes:', err);
+    }
+  };
+
   useEffect(() => {
     fetchQuestions();
+    fetchQuizzes();
   }, []);
 
   const handleOptionChange = (index, value) => {
@@ -45,6 +59,8 @@ function ManageQuestions() {
     };
 
     try {
+      let targetQId = editingId;
+
       if (editingId) {
         setQuestions((prev) =>
           prev.map((q) => (q._id === editingId ? { ...q, ...payload } : q))
@@ -60,6 +76,7 @@ function ManageQuestions() {
       } else {
         const res = await axiosClient.post('/questions', payload);
         const newQ = res.data?.question;
+        targetQId = newQ?._id;
 
         if (newQ) {
           setQuestions((prev) => [newQ, ...prev]);
@@ -68,10 +85,36 @@ function ManageQuestions() {
         setMessage({ type: 'success', text: 'Question created successfully!' });
       }
 
+      // Xử lý gán câu hỏi vào Quiz đã chọn trong form (cả khi tạo và khi sửa)
+      if (targetQId && selectedQuizId) {
+        try {
+          const targetQuiz = quizzes.find((qz) => String(qz._id) === String(selectedQuizId));
+          if (targetQuiz) {
+            const currentIds = (targetQuiz.questions || [])
+              .filter(Boolean)
+              .map((q) => String(q && typeof q === 'object' ? (q._id || q) : q))
+              .filter((id) => id && id !== 'undefined' && id !== 'null');
+
+            const qIdStr = String(targetQId);
+            if (!currentIds.includes(qIdStr)) {
+              await axiosClient.put(`/quizzes/${selectedQuizId}`, {
+                title: targetQuiz.title,
+                description: targetQuiz.description || '',
+                questions: [...currentIds, qIdStr],
+              });
+              await fetchQuizzes();
+            }
+          }
+        } catch (syncErr) {
+          console.error('Error assigning to quiz:', syncErr);
+        }
+      }
+
       setQuestionText('');
       setOptions(['', '', '', '']);
       setCorrectAnswerIndex(0);
       setEditingId(null);
+      setSelectedQuizId('');
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error saving question' });
       fetchQuestions();
@@ -85,6 +128,15 @@ function ManageQuestions() {
     setQuestionText(q.text || '');
     setOptions(q.options?.length === 4 ? [...q.options] : ['', '', '', '']);
     setCorrectAnswerIndex(q.correctAnswerIndex ?? 0);
+
+    // Tự động tìm xem câu hỏi này đang thuộc về bài Quiz nào và hiển thị sẵn trong dropdown Add to Quiz
+    const foundQuiz = quizzes.find((qz) =>
+      (qz.questions || []).some(
+        (item) => String(item && typeof item === 'object' ? item._id : item) === String(q._id)
+      )
+    );
+    setSelectedQuizId(foundQuiz ? foundQuiz._id : '');
+
     setMessage({ type: '', text: '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -121,7 +173,7 @@ function ManageQuestions() {
           </div>
         )}
 
-        {/* Form Question matching Image 6 exactly */}
+        {/* Form Question hỗ trợ cả Add Question và Edit/Update Question kèm Add to Quiz */}
         <div className="card p-3 mb-4 border-1 rounded-1 shadow-none">
           <form onSubmit={handleSubmit}>
             <div className="row mb-3 align-items-center">
@@ -171,6 +223,25 @@ function ManageQuestions() {
               </div>
             </div>
 
+            {/* Mục Add to Quiz có trong cả Form Tạo mới và Form Chỉnh sửa (Edit) */}
+            <div className="row mb-3 align-items-center">
+              <label className="col-sm-2 col-form-label text-dark">Add to Quiz:</label>
+              <div className="col-sm-10">
+                <select
+                  className="form-select"
+                  value={selectedQuizId}
+                  onChange={(e) => setSelectedQuizId(e.target.value)}
+                >
+                  <option value="">-- Do not add to quiz --</option>
+                  {quizzes.map((qz) => (
+                    <option key={qz._id} value={qz._id}>
+                      {qz.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <button type="submit" className="btn btn-primary w-100 py-2 mt-1" disabled={loading}>
               {loading ? 'Saving...' : editingId ? 'Update Question' : 'Add Question'}
             </button>
@@ -183,6 +254,7 @@ function ManageQuestions() {
                   setQuestionText('');
                   setOptions(['', '', '', '']);
                   setCorrectAnswerIndex(0);
+                  setSelectedQuizId('');
                   setMessage({ type: '', text: '' });
                 }}
               >
@@ -192,7 +264,7 @@ function ManageQuestions() {
           </form>
         </div>
 
-        {/* Questions List matching Image 6 exactly */}
+        {/* Questions List: chỉ có Edit và Delete, không bị ô chọn rườm rà dưới card */}
         <div className="card border-1 rounded-1 shadow-none">
           {questions.length === 0 ? (
             <div className="p-4 text-center text-muted">No questions yet.</div>
