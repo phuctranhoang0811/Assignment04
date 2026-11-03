@@ -5,14 +5,9 @@ import HeaderNav from '../components/HeaderNav';
 function ManageQuizzes() {
   const [quizzes, setQuizzes] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
-  const [users, setUsers] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedNewQuestions, setSelectedNewQuestions] = useState([]);
   const [selectedAddQuestion, setSelectedAddQuestion] = useState({});
-  const [editingQuizId, setEditingQuizId] = useState(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -31,28 +26,11 @@ function ManageQuizzes() {
     } catch (err) {
       console.error('Error fetching data:', err);
     }
-
-    try {
-      const userRes = await axiosClient.get('/users');
-      if (Array.isArray(userRes.data)) {
-        setUsers(userRes.data);
-      }
-    } catch (err) {
-      console.warn('Could not load users:', err);
-    }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleToggleNewQuestion = (qId) => {
-    if (selectedNewQuestions.includes(qId)) {
-      setSelectedNewQuestions(selectedNewQuestions.filter((id) => id !== qId));
-    } else {
-      setSelectedNewQuestions([...selectedNewQuestions, qId]);
-    }
-  };
 
   const handleCreateQuiz = async (e) => {
     e.preventDefault();
@@ -65,22 +43,17 @@ function ManageQuizzes() {
       const res = await axiosClient.post('/quizzes', {
         title: title.trim(),
         description: description.trim(),
-        questions: selectedNewQuestions,
+        questions: [],
       });
 
       const newQz = res.data?.quiz;
       if (newQz) {
-        const fullQz = {
-          ...newQz,
-          questions: allQuestions.filter((q) => selectedNewQuestions.includes(q._id)),
-        };
-        setQuizzes((prev) => [...prev, fullQz]);
+        setQuizzes((prev) => [...prev, { ...newQz, questions: [] }]);
       }
 
       setTitle('');
       setDescription('');
-      setSelectedNewQuestions([]);
-      setMessage({ type: 'success', text: 'Quiz / Article created successfully!' });
+      setMessage({ type: 'success', text: 'Created quiz successfully!' });
     } catch (err) {
       setMessage({ type: 'danger', text: err.response?.data?.message || 'Error creating quiz' });
       fetchData();
@@ -89,39 +62,9 @@ function ManageQuizzes() {
     }
   };
 
-  const handleStartEditQuiz = (qz) => {
-    setEditingQuizId(qz._id);
-    setEditTitle(qz.title);
-    setEditDescription(qz.description || '');
-  };
-
-  const handleSaveEditQuiz = async (quizId) => {
-    // Cập nhật giao diện tức thì (Optimistic)
-    setQuizzes((prev) =>
-      prev.map((q) =>
-        q._id === quizId
-          ? { ...q, title: editTitle.trim(), description: editDescription.trim() }
-          : q
-      )
-    );
-    setEditingQuizId(null);
-    setMessage({ type: 'success', text: 'Quiz updated successfully!' });
-
-    try {
-      await axiosClient.put(`/quizzes/${quizId}`, {
-        title: editTitle.trim(),
-        description: editDescription.trim(),
-      });
-    } catch (err) {
-      setMessage({ type: 'danger', text: err.response?.data?.message || 'Error updating quiz' });
-      fetchData();
-    }
-  };
-
   const handleDeleteQuiz = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this quiz / article?')) return;
+    if (!window.confirm('Are you sure you want to delete this quiz?')) return;
 
-    // Xoá tức thì khỏi state
     setQuizzes((prev) => prev.filter((q) => q._id !== id));
     setMessage({ type: 'success', text: 'Deleted quiz successfully!' });
 
@@ -142,7 +85,6 @@ function ManageQuizzes() {
 
     const questionObj = allQuestions.find((q) => q._id === qIdToAdd) || qIdToAdd;
 
-    // Cập nhật giao diện tức thì (Optimistic)
     setQuizzes((prev) =>
       prev.map((qz) =>
         qz._id === quiz._id
@@ -151,7 +93,7 @@ function ManageQuizzes() {
       )
     );
     setSelectedAddQuestion({ ...selectedAddQuestion, [quiz._id]: '' });
-    setMessage({ type: 'success', text: 'Added question to quiz successfully!' });
+    setMessage({ type: 'success', text: 'Added question to quiz!' });
 
     try {
       await axiosClient.put(`/quizzes/${quiz._id}`, {
@@ -169,7 +111,6 @@ function ManageQuizzes() {
     const currentIds = (quiz.questions || []).map((q) => (typeof q === 'object' ? q._id : q));
     const updatedIds = currentIds.filter((id) => id !== questionIdToRemove);
 
-    // Cập nhật giao diện tức thì (Optimistic)
     setQuizzes((prev) =>
       prev.map((qz) =>
         qz._id === quiz._id
@@ -182,7 +123,7 @@ function ManageQuizzes() {
           : qz
       )
     );
-    setMessage({ type: 'success', text: 'Removed question from quiz successfully!' });
+    setMessage({ type: 'success', text: 'Removed question from quiz!' });
 
     try {
       await axiosClient.put(`/quizzes/${quiz._id}`, {
@@ -200,8 +141,8 @@ function ManageQuizzes() {
     <div>
       <HeaderNav title="Admin Dashboard" />
 
-      <div className="container mt-4 mb-5" style={{ maxWidth: '900px' }}>
-        <h2 className="fw-bold mb-4">Manage Articles & Quizzes</h2>
+      <div className="container mt-4 mb-5" style={{ maxWidth: '800px' }}>
+        <h2 className="fw-normal mb-4">Manage Articles</h2>
 
         {message.text && (
           <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
@@ -214,9 +155,9 @@ function ManageQuizzes() {
           </div>
         )}
 
-        {/* Form tạo Quiz / Article */}
-        <div className="card p-4 mb-5 border-1 shadow-none">
-          <h4 className="fw-normal mb-3">Add New Quiz / Article</h4>
+        {/* Clean minimal Add Quiz Form */}
+        <div className="card p-4 mb-4 border-1 shadow-none">
+          <h5 className="fw-normal mb-3">Add New Quiz / Article</h5>
           <form onSubmit={handleCreateQuiz}>
             <div className="row mb-3 align-items-center">
               <label className="col-sm-3 col-form-label text-secondary">Title:</label>
@@ -224,7 +165,7 @@ function ManageQuizzes() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. JavaScript Basics, Node.js Test..."
+                  placeholder="Quiz title..."
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -245,223 +186,110 @@ function ManageQuizzes() {
               </div>
             </div>
 
-            {allQuestions.length > 0 && (
-              <div className="row mb-3">
-                <label className="col-sm-3 col-form-label text-secondary">Select Questions:</label>
-                <div className="col-sm-9">
-                  <div
-                    className="border rounded p-2"
-                    style={{ maxHeight: '160px', overflowY: 'auto' }}
-                  >
-                    {allQuestions.map((q) => (
-                      <div className="form-check py-1" key={q._id}>
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id={`new-quiz-q-${q._id}`}
-                          checked={selectedNewQuestions.includes(q._id)}
-                          onChange={() => handleToggleNewQuestion(q._id)}
-                        />
-                        <label className="form-check-label small" htmlFor={`new-quiz-q-${q._id}`}>
-                          {q.text}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="form-text small">
-                    Selected {selectedNewQuestions.length} of {allQuestions.length} questions
-                  </div>
-                </div>
-              </div>
-            )}
-
             <button type="submit" className="btn btn-primary w-100 py-2" disabled={loading}>
-              {loading ? 'Creating...' : 'Add Quiz / Article'}
+              {loading ? 'Creating...' : 'Add Quiz'}
             </button>
           </form>
         </div>
 
-        {/* Danh sách Quiz / Article */}
-        <h4 className="fw-normal mb-3">Existing Quizzes & Articles</h4>
+        {/* Clean minimal Quizzes List */}
+        <h5 className="fw-normal mb-3">Existing Quizzes</h5>
         {quizzes.length === 0 ? (
-          <div className="card p-4 text-center text-muted border-1 shadow-none mb-5">
-            No quizzes available yet. Create one using the form above!
+          <div className="card p-4 text-center text-muted border-1 shadow-none">
+            No quizzes available yet.
           </div>
         ) : (
-          <div className="mb-5">
-            {quizzes.map((qz) => {
-              const currentQIds = (qz.questions || []).map((q) =>
-                typeof q === 'object' ? q._id : q
-              );
-              const availableToAdd = allQuestions.filter((q) => !currentQIds.includes(q._id));
-              const isEditing = editingQuizId === qz._id;
+          quizzes.map((qz) => {
+            const currentQIds = (qz.questions || []).map((q) =>
+              typeof q === 'object' ? q._id : q
+            );
+            const availableToAdd = allQuestions.filter((q) => !currentQIds.includes(q._id));
 
-              return (
-                <div key={qz._id} className="card p-4 mb-4 border-1 shadow-none">
-                  {isEditing ? (
-                    <div className="mb-3">
-                      <div className="mb-2">
-                        <label className="form-label small text-secondary">Edit Title:</label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small text-secondary">Edit Description:</label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                        />
-                      </div>
-                      <button
-                        className="btn btn-sm btn-success me-2"
-                        onClick={() => handleSaveEditQuiz(qz._id)}
-                      >
-                        Save
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setEditingQuizId(null)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="d-flex justify-content-between align-items-start mb-3">
-                      <div>
-                        <h4 className="fw-bold mb-1">{qz.title}</h4>
-                        <p className="text-secondary mb-1 small">{qz.description || 'No description'}</p>
-                        <span className="badge bg-primary">
-                          {qz.questions?.length || 0} Questions
-                        </span>
-                      </div>
-
-                      <div className="d-flex gap-2">
-                        <button
-                          className="btn btn-outline-primary btn-sm"
-                          onClick={() => handleStartEditQuiz(qz)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => handleDeleteQuiz(qz._id)}
-                        >
-                          Delete Quiz
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Danh sách câu hỏi trong Quiz này */}
-                  <div className="bg-light p-3 rounded mb-3">
-                    <h6 className="fw-bold mb-2">Questions in this Quiz:</h6>
-                    {!qz.questions || qz.questions.length === 0 ? (
-                      <div className="text-muted small">No questions attached to this quiz yet.</div>
-                    ) : (
-                      <div className="d-flex flex-column gap-2">
-                        {qz.questions.map((q, idx) => {
-                          const qId = typeof q === 'object' ? q._id : q;
-                          const qText = typeof q === 'object' ? q.text : `Question ID: ${q}`;
-                          return (
-                            <div
-                              key={qId || idx}
-                              className="d-flex justify-content-between align-items-center bg-white p-2 rounded border"
-                            >
-                              <span className="small text-truncate me-2">
-                                <strong>Q{idx + 1}:</strong> {qText}
-                              </span>
-                              <button
-                                className="btn btn-sm btn-outline-danger py-0 px-2"
-                                style={{ fontSize: '0.8rem' }}
-                                onClick={() => handleRemoveQuestionFromQuiz(qz, qId)}
-                                title="Remove from this quiz"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+            return (
+              <div key={qz._id} className="card p-4 mb-3 border-1 shadow-none">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <h5 className="fw-bold mb-1">{qz.title}</h5>
+                    <p className="text-secondary mb-1 small">{qz.description || 'No description'}</p>
+                    <span className="badge bg-secondary">
+                      {qz.questions?.length || 0} Questions
+                    </span>
                   </div>
 
-                  {/* Thêm câu hỏi vào Quiz này */}
-                  <div className="row g-2 align-items-center">
-                    <div className="col-sm-9">
-                      <select
-                        className="form-select form-select-sm"
-                        value={selectedAddQuestion[qz._id] || ''}
-                        onChange={(e) =>
-                          setSelectedAddQuestion({
-                            ...selectedAddQuestion,
-                            [qz._id]: e.target.value,
-                          })
-                        }
-                        disabled={availableToAdd.length === 0}
-                      >
-                        <option value="">
-                          {availableToAdd.length === 0
-                            ? '-- All available questions already added --'
-                            : '-- Select a question to add to this quiz --'}
+                  <button
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => handleDeleteQuiz(qz._id)}
+                  >
+                    Delete Quiz
+                  </button>
+                </div>
+
+                {/* List questions inside quiz */}
+                {qz.questions && qz.questions.length > 0 && (
+                  <div className="my-2 border rounded p-2 bg-light">
+                    {qz.questions.map((q, idx) => {
+                      const qId = typeof q === 'object' ? q._id : q;
+                      const qText = typeof q === 'object' ? q.text : `Question ID: ${q}`;
+                      return (
+                        <div
+                          key={qId || idx}
+                          className="d-flex justify-content-between align-items-center py-1 border-bottom last-border-0"
+                        >
+                          <span className="small text-truncate me-2">
+                            {idx + 1}. {qText}
+                          </span>
+                          <button
+                            className="btn btn-link text-danger p-0 small text-decoration-none"
+                            onClick={() => handleRemoveQuestionFromQuiz(qz, qId)}
+                            style={{ fontSize: '0.8rem' }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Dropdown to add questions */}
+                <div className="row g-2 align-items-center mt-2">
+                  <div className="col-sm-9">
+                    <select
+                      className="form-select form-select-sm"
+                      value={selectedAddQuestion[qz._id] || ''}
+                      onChange={(e) =>
+                        setSelectedAddQuestion({
+                          ...selectedAddQuestion,
+                          [qz._id]: e.target.value,
+                        })
+                      }
+                      disabled={availableToAdd.length === 0}
+                    >
+                      <option value="">
+                        {availableToAdd.length === 0
+                          ? '-- All questions already added --'
+                          : '-- Select a question to add --'}
+                      </option>
+                      {availableToAdd.map((q) => (
+                        <option key={q._id} value={q._id}>
+                          {q.text}
                         </option>
-                        {availableToAdd.map((q) => (
-                          <option key={q._id} value={q._id}>
-                            {q.text}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-sm-3">
-                      <button
-                        className="btn btn-success btn-sm w-100"
-                        disabled={!selectedAddQuestion[qz._id]}
-                        onClick={() => handleAddQuestionToQuiz(qz)}
-                      >
-                        + Add Question
-                      </button>
-                    </div>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-sm-3">
+                    <button
+                      className="btn btn-outline-primary btn-sm w-100"
+                      disabled={!selectedAddQuestion[qz._id]}
+                      onClick={() => handleAddQuestionToQuiz(qz)}
+                    >
+                      + Add
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Danh sách người dùng hệ thống (GET /users) */}
-        {users.length > 0 && (
-          <div className="card p-4 border-1 shadow-none">
-            <h4 className="fw-normal mb-3">Registered Users</h4>
-            <div className="table-responsive">
-              <table className="table table-bordered table-sm mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>#</th>
-                    <th>Username</th>
-                    <th>Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u, i) => (
-                    <tr key={u._id || i}>
-                      <td>{i + 1}</td>
-                      <td>{u.username}</td>
-                      <td>
-                        <span className={`badge ${u.admin ? 'bg-danger' : 'bg-secondary'}`}>
-                          {u.admin ? 'Admin' : 'User'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
