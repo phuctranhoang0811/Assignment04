@@ -122,34 +122,6 @@ function ManageQuestions() {
     }
   };
 
-  const handleAddExistingQuestionToQuiz = async (questionId, quizId) => {
-    const targetQuiz = quizzes.find((qz) => String(qz._id) === String(quizId));
-    if (!targetQuiz) return;
-
-    const currentIds = (targetQuiz.questions || [])
-      .filter(Boolean)
-      .map((q) => String(q && typeof q === 'object' ? (q._id || q) : q))
-      .filter((id) => id && id !== 'undefined' && id !== 'null');
-
-    const cleanQId = String(questionId);
-    if (currentIds.includes(cleanQId)) {
-      setMessage({ type: 'info', text: `This question is already in "${targetQuiz.title}".` });
-      return;
-    }
-
-    try {
-      await axiosClient.put(`/quizzes/${quizId}`, {
-        title: targetQuiz.title,
-        description: targetQuiz.description || '',
-        questions: [...currentIds, cleanQId],
-      });
-      await fetchQuizzes();
-      setMessage({ type: 'success', text: `Added question to "${targetQuiz.title}" successfully!` });
-    } catch (err) {
-      setMessage({ type: 'danger', text: err.response?.data?.message || 'Error adding question to quiz' });
-    }
-  };
-
   const handleEdit = (q) => {
     setEditingId(q._id);
     setQuestionText(q.text || '');
@@ -313,34 +285,12 @@ function ManageQuestions() {
                   })}
                 </ul>
 
-                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <select
-                      className="form-select form-select-sm"
-                      style={{ width: '220px' }}
-                      defaultValue=""
-                      onChange={async (e) => {
-                        const qzId = e.target.value;
-                        if (!qzId) return;
-                        await handleAddExistingQuestionToQuiz(q._id, qzId);
-                        e.target.value = '';
-                      }}
-                    >
-                      <option value="">+ Add to a Quiz...</option>
-                      {quizzes.map((qz) => (
-                        <option key={qz._id} value={qz._id}>
-                          {qz.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <button
-                      className="btn btn-warning btn-sm me-2 text-dark px-3 fw-semibold"
-                      style={{ backgroundColor: '#ffc107', borderColor: '#ffc107' }}
-                      onClick={() => handleEdit(q)}
-                    >
+                <div>
+                  <button
+                    className="btn btn-warning btn-sm me-2 text-dark px-3 fw-semibold"
+                    style={{ backgroundColor: '#ffc107', borderColor: '#ffc107' }}
+                    onClick={() => handleEdit(q)}
+                  >
                       Edit
                     </button>
                     <button
@@ -351,7 +301,6 @@ function ManageQuestions() {
                     </button>
                   </div>
                 </div>
-              </div>
             ))
           )}
         </div>
