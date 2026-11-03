@@ -29,9 +29,9 @@ function UserDashboard() {
 
   const handleStartQuiz = (quiz) => {
     if (quiz.questions && quiz.questions.length > 0) {
-      dispatch(setQuestions(quiz.questions));
+      dispatch(setQuestions({ questions: quiz.questions, title: quiz.title }));
     }
-    navigate('/dashboard/quiz');
+    navigate(`/dashboard/quiz/${quiz._id}`);
   };
 
   return (

@@ -40,6 +40,10 @@ function App() {
           path="/dashboard/quiz"
           element={isAuthenticated ? <QuizPage /> : <Navigate to="/login" replace />}
         />
+        <Route
+          path="/dashboard/quiz/:quizId"
+          element={isAuthenticated ? <QuizPage /> : <Navigate to="/login" replace />}
+        />
 
         {/* Admin routes */}
         <Route

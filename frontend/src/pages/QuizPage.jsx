@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import HeaderNav from '../components/HeaderNav';
-import { setQuestions, selectOption, submitCurrentAnswer, restartQuiz } from '../redux/quizSlice';
+import { setQuestions, selectOption, submitCurrentAnswer, finishQuiz, restartQuiz } from '../redux/quizSlice';
 
-// Sample fallback questions from the assignment test data
 const DEFAULT_QUESTIONS = [
   {
     _id: 'q1',
@@ -39,46 +39,58 @@ const DEFAULT_QUESTIONS = [
 ];
 
 function QuizPage() {
+  const { quizId } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { questions, currentIndex, selectedAnswer, score, isCompleted } = useSelector((state) => state.quiz);
+  const { questions, quizTitle, currentIndex, selectedAnswer, score, isCompleted } = useSelector((state) => state.quiz);
 
   useEffect(() => {
     const loadQuestions = async () => {
+      if (quizId) {
+        try {
+          const res = await axiosClient.get(`/quizzes/${quizId}`);
+          const quizData = res.data?.data || res.data;
+          if (quizData && Array.isArray(quizData.questions) && quizData.questions.length > 0) {
+            dispatch(setQuestions({ questions: quizData.questions, title: quizData.title }));
+            return;
+          }
+        } catch (err) {
+          console.error('Error fetching quiz by ID:', err);
+        }
+      }
+
+      if (questions.length > 0) {
+        return;
+      }
+
       let loaded = [];
       try {
-        // 1. Thử lấy danh sách câu hỏi từ /questions
-        const resQ = await axiosClient.get('/questions');
-        if (Array.isArray(resQ.data) && resQ.data.length > 0) {
-          loaded = resQ.data;
-        }
-      } catch (err) {
-        // Nếu /questions bị 403 (dành cho Admin), thử lấy qua /quizzes
-        try {
-          const resQuiz = await axiosClient.get('/quizzes');
-          if (Array.isArray(resQuiz.data)) {
-            for (const qz of resQuiz.data) {
-              if (qz.questions && qz.questions.length > 0) {
-                loaded = qz.questions;
-                break;
-              }
+        const resQuiz = await axiosClient.get('/quizzes');
+        const quizList = resQuiz.data?.data || resQuiz.data;
+        if (Array.isArray(quizList)) {
+          for (const qz of quizList) {
+            if (qz.questions && qz.questions.length > 0) {
+              dispatch(setQuestions({ questions: qz.questions, title: qz.title }));
+              return;
             }
           }
-        } catch (quizErr) {
-          console.error(quizErr);
         }
+      } catch (quizErr) {
+        console.error(quizErr);
       }
 
       if (loaded.length === 0) {
         loaded = DEFAULT_QUESTIONS;
       }
 
-      dispatch(setQuestions(loaded));
+      dispatch(setQuestions({ questions: loaded, title: 'Sample Quiz' }));
     };
 
     loadQuestions();
-  }, [dispatch]);
+  }, [quizId, dispatch]);
 
   const currentQuestion = questions[currentIndex];
+  const isLastQuestion = currentIndex + 1 >= questions.length;
 
   return (
     <div>
@@ -86,18 +98,26 @@ function QuizPage() {
 
       <div className="container text-center mt-5" style={{ maxWidth: '600px' }}>
         {isCompleted ? (
-          /* Màn hình hoàn thành Quiz (Ảnh 4) */
           <div>
             <h2 className="display-6 fw-normal mb-3">Quiz Completed</h2>
             <p className="fs-5 text-secondary mb-4">Your score: {score}</p>
-            <button className="btn btn-primary px-4 py-2" onClick={() => dispatch(restartQuiz())}>
-              Restart Quiz
-            </button>
+            <div className="d-flex justify-content-center gap-2">
+              <button className="btn btn-primary px-4 py-2" onClick={() => dispatch(restartQuiz())}>
+                Restart Quiz
+              </button>
+              <button className="btn btn-outline-secondary px-4 py-2" onClick={() => navigate('/dashboard')}>
+                Back to Dashboard
+              </button>
+            </div>
           </div>
         ) : currentQuestion ? (
-          /* Màn hình làm Quiz (Ảnh 3) */
           <div>
-            <h2 className="display-6 fw-normal mb-3">Quiz</h2>
+            <h2 className="display-6 fw-normal mb-3">{quizTitle || 'Quiz'}</h2>
+            {questions.length > 1 && (
+              <p className="text-secondary small mb-2">
+                Question {currentIndex + 1} of {questions.length}
+              </p>
+            )}
             <h3 className="fw-bold mb-4">{currentQuestion.text}</h3>
 
             <div className="text-start d-inline-block mb-4" style={{ minWidth: '200px' }}>
@@ -118,14 +138,23 @@ function QuizPage() {
               ))}
             </div>
 
-            <div>
+            <div className="d-flex justify-content-center gap-2">
               <button
                 className="btn btn-primary px-4 py-2"
                 disabled={selectedAnswer === null}
                 onClick={() => dispatch(submitCurrentAnswer())}
               >
-                Submit Answer
+                {isLastQuestion ? 'Submit Answer' : 'Submit Answer'}
               </button>
+              {questions.length > 1 && (
+                <button
+                  className="btn btn-outline-secondary px-3 py-2"
+                  disabled={selectedAnswer === null}
+                  onClick={() => dispatch(finishQuiz())}
+                >
+                  Finish Quiz
+                </button>
+              )}
             </div>
           </div>
         ) : (
