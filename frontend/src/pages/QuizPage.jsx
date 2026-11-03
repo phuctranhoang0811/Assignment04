@@ -113,11 +113,16 @@ function QuizPage() {
         ) : currentQuestion ? (
           <div>
             <h2 className="display-6 fw-normal mb-3">{quizTitle || 'Quiz'}</h2>
-            {questions.length > 1 && (
-              <p className="text-secondary small mb-2">
+
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <span className="badge bg-secondary-subtle text-dark border px-3 py-2">
                 Question {currentIndex + 1} of {questions.length}
-              </p>
-            )}
+              </span>
+              <span className="badge bg-primary px-3 py-2 fs-6">
+                Current Score: {score}
+              </span>
+            </div>
+
             <h3 className="fw-bold mb-4">{currentQuestion.text}</h3>
 
             <div className="text-start d-inline-block mb-4" style={{ minWidth: '200px' }}>
